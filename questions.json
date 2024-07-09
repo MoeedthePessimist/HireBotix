@@ -1,0 +1,38 @@
+[
+  {
+    "difficulty": "Easy",
+    "problem": "Write a function to reverse a string."
+  },
+  {
+    "difficulty": "Easy",
+    "problem": "Find the maximum number in an array."
+  },
+  {
+    "difficulty": "Easy",
+    "problem": "Implement a function to check if a number is prime."
+  },
+  {
+    "difficulty": "Intermediate",
+    "problem": "Write a function to merge two sorted arrays."
+  },
+  {
+    "difficulty": "Intermediate",
+    "problem": "Implement a binary search algorithm."
+  },
+  {
+    "difficulty": "Intermediate",
+    "problem": "Create a function to find the longest substring without repeating characters."
+  },
+  {
+    "difficulty": "Hard",
+    "problem": "Implement a function to solve the N-Queens problem."
+  },
+  {
+    "difficulty": "Hard",
+    "problem": "Write a function to find all permutations of a string."
+  },
+  {
+    "difficulty": "Hard",
+    "problem": "Implement a function to solve the Traveling Salesman Problem."
+  }
+]
