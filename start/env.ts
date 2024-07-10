@@ -37,4 +37,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   OPENAI_API_KEY: Env.schema.string(),
 
   PINECONE_API_KEY: Env.schema.string(),
+
+  PINECONE_INDEX: Env.schema.string(),
 })

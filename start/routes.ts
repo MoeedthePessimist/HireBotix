@@ -16,5 +16,5 @@ router.get('/', async () => {
   }
 })
 
-router.get('/questions', [QuestionsController, 'index'])
-router.post('/questions/create-index', [QuestionsController, 'createIndex'])
+router.get('/questions', [QuestionsController, 'generate'])
+router.post('/questions', [QuestionsController, 'store'])
