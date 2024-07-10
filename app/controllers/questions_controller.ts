@@ -18,7 +18,9 @@ export default class QuestionsController {
     })
   }
 
-  async generate({ response }: HttpContext) {
+  async generate({ request, response }: HttpContext) {
+    const { difficulty } = request.qs()
+
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
     })
@@ -45,7 +47,7 @@ Difficulty: {input}`)
     })
 
     const result = await retrievalChain.invoke({
-      input: 'Hard',
+      input: difficulty,
     })
 
     response.status(200).json({
