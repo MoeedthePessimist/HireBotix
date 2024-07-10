@@ -1,12 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { chatModel, embeddings } from '#config/langchain'
-import { pc, pcIndex } from '#config/pinecone'
+import { pcIndex } from '#config/pinecone'
 import fs from 'node:fs'
-import env from '#start/env'
 import { Document } from '@langchain/core/documents'
-import { OpenAIEmbeddings } from '@langchain/openai'
-import { VectorDBQAChain } from 'langchain/chains'
+import { createRetrievalChain } from 'langchain/chains/retrieval'
 import { PineconeStore } from '@langchain/pinecone'
+import { createStuffDocumentsChain } from 'langchain/chains/combine_documents'
+import { ChatPromptTemplate } from '@langchain/core/prompts'
 
 export default class QuestionsController {
   async index({ response }: HttpContext) {
@@ -23,10 +23,34 @@ export default class QuestionsController {
       pineconeIndex: pcIndex,
     })
 
-    console.log(vectorStore)
+    const retriever = vectorStore.asRetriever()
+
+    const prompt =
+      ChatPromptTemplate.fromTemplate(`Generate new coding problem based on the provided difficulty and context:
+
+<context>
+{context}
+</context>
+
+Difficulty: {input}`)
+
+    const documentChain = await createStuffDocumentsChain({
+      llm: chatModel,
+      prompt,
+    })
+
+    const retrievalChain = await createRetrievalChain({
+      retriever,
+      combineDocsChain: documentChain,
+    })
+
+    const result = await retrievalChain.invoke({
+      input: 'Hard',
+    })
 
     response.status(200).json({
       message: 'Generated!',
+      result,
     })
   }
 
