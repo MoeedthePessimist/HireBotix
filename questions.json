@@ -1,38 +1,122 @@
 [
   {
-    "difficulty": "Easy",
-    "problem": "Write a function to reverse a string."
+    "problem": "Implement a function to reverse a string. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Easy",
-    "problem": "Find the maximum number in an array."
+    "problem": "Write a function to find the factorial of a number. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Easy",
-    "problem": "Implement a function to check if a number is prime."
+    "problem": "Create a function to check if a number is prime. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Intermediate",
-    "problem": "Write a function to merge two sorted arrays."
+    "problem": "Develop a function to compute the Fibonacci sequence up to n terms. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Intermediate",
-    "problem": "Implement a binary search algorithm."
+    "problem": "Implement a function to find the maximum element in an array. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Intermediate",
-    "problem": "Create a function to find the longest substring without repeating characters."
+    "problem": "Write a function to check if a string is a palindrome. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Hard",
-    "problem": "Implement a function to solve the N-Queens problem."
+    "problem": "Create a function to merge two sorted arrays. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Hard",
-    "problem": "Write a function to find all permutations of a string."
+    "problem": "Develop a function to count the number of vowels in a string. (Easy)",
+    "difficulty": "easy"
   },
   {
-    "difficulty": "Hard",
-    "problem": "Implement a function to solve the Traveling Salesman Problem."
+    "problem": "Implement a function to remove duplicates from an array. (Easy)",
+    "difficulty": "easy"
+  },
+  {
+    "problem": "Write a function to find the GCD of two numbers. (Easy)",
+    "difficulty": "easy"
+  },
+  {
+    "problem": "Create a function to find the longest common prefix in an array of strings. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Implement a function to perform binary search on a sorted array. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Write a function to sort an array using the quicksort algorithm. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Develop a function to find the first non-repeating character in a string. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Implement a function to check if two strings are anagrams. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Write a function to find the kth largest element in an array. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Create a function to find the intersection of two arrays. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Develop a function to rotate an array by k positions. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Implement a function to validate a Sudoku board. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Write a function to find the maximum subarray sum using the Kadane's algorithm. (Intermediate)",
+    "difficulty": "intermediate"
+  },
+  {
+    "problem": "Create a function to implement a LRU (Least Recently Used) cache. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Develop a function to solve the N-Queens problem. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Write a function to find the shortest path in a graph using Dijkstra's algorithm. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Implement a function to serialize and deserialize a binary tree. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Create a function to solve the word search problem on a grid. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Develop a function to find all permutations of a string. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Write a function to find the longest increasing subsequence in an array. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Implement a function to perform topological sorting on a graph. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Create a function to solve the traveling salesman problem using dynamic programming. (Hard)",
+    "difficulty": "hard"
+  },
+  {
+    "problem": "Develop a function to find the maximum flow in a flow network using the Ford-Fulkerson algorithm. (Hard)",
+    "difficulty": "hard"
   }
 ]

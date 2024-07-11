@@ -9,15 +9,6 @@ import { createStuffDocumentsChain } from 'langchain/chains/combine_documents'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
 
 export default class QuestionsController {
-  async index({ response }: HttpContext) {
-    const file = fs.readFileSync('questions.json', 'utf8')
-    const existingQuestions = await JSON.parse(file)
-
-    return response.json({
-      questions: existingQuestions,
-    })
-  }
-
   async generate({ request, response }: HttpContext) {
     const { difficulty } = request.qs()
 
@@ -25,6 +16,11 @@ export default class QuestionsController {
       pineconeIndex: pcIndex,
     })
 
+    // const retriever = vectorStore.asRetriever({
+    //   metadata: {
+    //     difficulty,
+    //   },
+    // })
     const retriever = vectorStore.asRetriever()
 
     const prompt =
