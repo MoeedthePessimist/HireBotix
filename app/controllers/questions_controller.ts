@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import QuestionService from '#services/question_service'
+import { inject } from '@adonisjs/core'
 
+@inject()
 export default class QuestionsController {
   constructor(protected questionService: QuestionService) {}
 
@@ -11,6 +13,14 @@ export default class QuestionsController {
 
     response.status(200).json({
       message: 'Generated!',
+      result,
+    })
+  }
+
+  async analyze({ response }: HttpContext) {
+    const result = await this.questionService.analyze()
+
+    return response.json({
       result,
     })
   }
