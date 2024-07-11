@@ -5,6 +5,7 @@ import { PineconeStore } from '@langchain/pinecone'
 import { createStuffDocumentsChain } from 'langchain/chains/combine_documents'
 import { createRetrievalChain } from 'langchain/chains/retrieval'
 import { Document } from 'langchain/document'
+import { JSONLoader } from 'langchain/document_loaders/fs/json'
 import fs from 'node:fs'
 
 export default class QuestionService {
@@ -23,11 +24,12 @@ export default class QuestionService {
     const prompt =
       ChatPromptTemplate.fromTemplate(`Generate new coding problem based on the provided difficulty and context:
 
-<context>
-{context}
-</context>
+        <context>
+        {context}
+        </context>
 
-Difficulty: {input}`)
+        Difficulty: {input}
+    `)
 
     const documentChain = await createStuffDocumentsChain({
       llm: chatModel,
@@ -42,22 +44,16 @@ Difficulty: {input}`)
     const result = await retrievalChain.invoke({
       input: difficulty,
     })
+
+    return result
   }
 
   async store() {
-    const file = fs.readFileSync('questions.json', 'utf8')
-    const existingQuestions = await JSON.parse(file)
+    const loader = new JSONLoader('questions.json')
 
-    const documents = existingQuestions.map((question: { difficulty: string; problem: string }) => {
-      return new Document({
-        pageContent: question.problem,
-        metadata: {
-          difficulty: question.difficulty,
-        },
-      })
-    })
+    const docs = await loader.load()
 
-    const vectors = await PineconeStore.fromDocuments(documents, embeddings, {
+    const vectors = await PineconeStore.fromDocuments(docs, embeddings, {
       pineconeIndex: pcIndex,
     })
 
