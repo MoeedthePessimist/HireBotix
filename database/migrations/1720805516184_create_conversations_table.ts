@@ -7,6 +7,10 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
 
+      table.integer('room').notNullable()
+      table.string('message', 10000).notNullable()
+      table.string('sender').notNullable()
+
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })

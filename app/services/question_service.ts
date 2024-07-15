@@ -1,9 +1,11 @@
 import { chatModel, embeddings } from '#config/langchain'
 import { pc, pcIndex } from '#config/pinecone'
 import Conversation from '#models/conversation'
+import db from '@adonisjs/lucid/services/db'
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts'
 import { PineconeStore } from '@langchain/pinecone'
+import { ConsoleCallbackHandler } from 'langchain/callbacks'
 import { createStuffDocumentsChain } from 'langchain/chains/combine_documents'
 import { createHistoryAwareRetriever } from 'langchain/chains/history_aware_retriever'
 import { createRetrievalChain } from 'langchain/chains/retrieval'
@@ -20,9 +22,9 @@ export default class QuestionService {
     })
 
     const retriever = vectorStore.asRetriever()
+    const systemMessage = `You are an interviewer who needs to give a coding problem to a candidate. The candidate is a junior developer so you need to test their problem solving skills. After giving them the problem you will have to evaluate their solution. The problem should be based on the given difficulty by the user and the context provided. The context is as follows:`
 
-    const prompt =
-      ChatPromptTemplate.fromTemplate(`Generate new coding problem based on the provided difficulty and context:
+    const prompt = ChatPromptTemplate.fromTemplate(`${systemMessage}
 
         <context>
         {context}
@@ -48,39 +50,43 @@ export default class QuestionService {
     const roomID = this.randNum()
 
     // insert the result to the database.
-    // const conversation = await Conversation.createMany([
-    //   {
-    //     roomID: roomID,
-    //     message: prompt as unknown as string,
-    //     sender: 'User',
-    //   },
-    //   {
-    //     roomID: roomID,
-    //     message: result.answer,
-    //     sender: 'AI',
-    //   },
-    // ])
+    const conversation = await Conversation.createMany([
+      { room: roomID, message: systemMessage, sender: 'System' },
+      {
+        room: roomID,
+        message: difficulty,
+        sender: 'User',
+      },
+      {
+        room: roomID,
+        message: result.answer,
+        sender: 'AI',
+      },
+    ])
 
     return {
       result,
-      //   conversation,
+      conversation,
     }
   }
 
-  async analyze() {
+  async analyze(room: number) {
+    const conversation = await Conversation.query().where('room', room)
+
     const historyAwarePrompt = ChatPromptTemplate.fromMessages([
       [
         'system',
-        `You are an interviewer who needs to give a coding problem to a candidate. The candidate is a junior developer so you need to test their problem solving skills. After giving them the problem you will have to evaluate their solution. The problem should be based on the given difficulty by the user and the context provided. The context is as follows:
+        `${conversation[0].message}
         <context>
         {context}
-        </context>
+        <context>
         `,
       ],
-      new HumanMessage('Difficulty: easy'),
-      new AIMessage('Generate a function that returns the sum of two numbers'),
+      new HumanMessage(`Difficulty: ${conversation[1].message}`),
+      new AIMessage(`${conversation[2].message}`),
       ['user', '{input}'],
     ])
+    console.log(historyAwarePrompt.promptMessages)
 
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
@@ -106,11 +112,14 @@ export default class QuestionService {
 
     const result = await conversationalRetrievalChain.invoke({
       input: `
-            function sum(a, b) {
-                return a + b;
+            function removeDuplicates(arr) {
+                return [...new Set(arr)];
             }
-            const result = sum(3, 5);
-            console.log(result); // Output: 8
+
+            // Example usage:
+            const arrayWithDuplicates = [1, 2, 2, 3, 4, 4, 5];
+            const uniqueArray = removeDuplicates(arrayWithDuplicates);
+            console.log(uniqueArray); // Output: [1, 2, 3, 4, 5]
         `,
     })
 

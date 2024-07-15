@@ -6,7 +6,7 @@ export default class Conversation extends BaseModel {
   declare id: number
 
   @column()
-  declare roomID: number
+  declare room: number
 
   @column()
   declare message: string

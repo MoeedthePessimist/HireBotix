@@ -17,8 +17,10 @@ export default class QuestionsController {
     })
   }
 
-  async analyze({ response }: HttpContext) {
-    const result = await this.questionService.analyze()
+  async analyze({ request, response }: HttpContext) {
+    const room = request.qs().room
+
+    const result = await this.questionService.analyze(room)
 
     return response.json({
       result,
