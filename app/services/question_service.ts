@@ -1,11 +1,9 @@
 import { chatModel, embeddings } from '#config/langchain'
-import { pc, pcIndex } from '#config/pinecone'
+import { pcIndex } from '#config/pinecone'
 import Conversation from '#models/conversation'
-import db from '@adonisjs/lucid/services/db'
-import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts'
+import { AIMessage, HumanMessage } from '@langchain/core/messages'
+import { ChatPromptTemplate } from '@langchain/core/prompts'
 import { PineconeStore } from '@langchain/pinecone'
-import { ConsoleCallbackHandler } from 'langchain/callbacks'
 import { createStuffDocumentsChain } from 'langchain/chains/combine_documents'
 import { createHistoryAwareRetriever } from 'langchain/chains/history_aware_retriever'
 import { createRetrievalChain } from 'langchain/chains/retrieval'
@@ -22,7 +20,7 @@ export default class QuestionService {
     })
 
     const retriever = vectorStore.asRetriever()
-    const systemMessage = `You are an interviewer who needs to give a coding problem to a candidate. The candidate is a junior developer so you need to test their problem solving skills. After giving them the problem you will have to evaluate their solution. The problem should be based on the given difficulty by the user and the context provided. The context is as follows:`
+    const systemMessage = `You are an interviewer who needs to give a coding problem to a candidate. The candidate is a junior developer so you need to test their problem solving skills. Generate a new problem based on the difficulty provided and the existing problems. The context is as follows:`
 
     const prompt = ChatPromptTemplate.fromTemplate(`${systemMessage}
 
@@ -70,7 +68,7 @@ export default class QuestionService {
     }
   }
 
-  async analyze(room: number) {
+  async analyze(room: number, code: string) {
     const conversation = await Conversation.query().where('room', room)
 
     const historyAwarePrompt = ChatPromptTemplate.fromMessages([
@@ -84,9 +82,13 @@ export default class QuestionService {
       ],
       new HumanMessage(`Difficulty: ${conversation[1].message}`),
       new AIMessage(`${conversation[2].message}`),
-      ['user', '{input}'],
+      [
+        'user',
+        `I want you to evaluate my code. Please give me suggestions as how can I make this code better:
+
+        {input}`,
+      ],
     ])
-    console.log(historyAwarePrompt.promptMessages)
 
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
@@ -112,14 +114,7 @@ export default class QuestionService {
 
     const result = await conversationalRetrievalChain.invoke({
       input: `
-            function removeDuplicates(arr) {
-                return [...new Set(arr)];
-            }
-
-            // Example usage:
-            const arrayWithDuplicates = [1, 2, 2, 3, 4, 4, 5];
-            const uniqueArray = removeDuplicates(arrayWithDuplicates);
-            console.log(uniqueArray); // Output: [1, 2, 3, 4, 5]
+           ${code}
         `,
     })
 
