@@ -1,11 +1,14 @@
-import { OpenAI, OpenAIEmbeddings } from '@langchain/openai'
-import env from '#start/env'
+import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama'
+import { ChatOllama } from '@langchain/community/chat_models/ollama'
 
-export const chatModel = new OpenAI({
-  apiKey: env.get('OPENAI_API_KEY'),
-  model: 'gpt-3.5-turbo',
+// import env from '#start/env'
+
+export const chatModel = new ChatOllama({
+  baseUrl: 'http://localhost:11434',
+  model: 'llama3',
 })
 
-export const embeddings = new OpenAIEmbeddings({
-  model: 'text-embedding-3-small',
+export const embeddings = new OllamaEmbeddings({
+  baseUrl: 'http://localhost:11434',
+  model: 'nomic-embed-text',
 })
