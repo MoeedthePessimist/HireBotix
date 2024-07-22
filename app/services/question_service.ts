@@ -32,25 +32,13 @@ export default class QuestionService {
     })
 
     const retriever = vectorStore.asRetriever()
-    const systemMessage = `You are an interviewer who needs to give a coding problem to a candidate. The candidate is a junior developer so you need to test their problem solving skills. Generate a new problem based on the difficulty provided and the existing problems. The context is as follows:`
-    const context = await retriever.invoke(`I want a problem of difficulty: ${difficulty}`, {
-      metadata: {
-        difficulty: difficulty,
-      },
-    })
-
-    const contextMessages = context
-      .map((document, idx) => `${idx} - ${document.pageContent}`)
-      .join('\n')
+    const systemMessage = `You are a technical interviewer, you are going to assign a question from the existing knowledge base in the vector store based on the given difficulty. Make sure it is not a question from the outside.`
 
     const prompt = ChatPromptTemplate.fromMessages(
       [
         [
           'system',
           `${systemMessage}
-          <context>
-            {context}
-          <context>
         `,
         ],
         ['human', `I want a problem of difficulty: {difficulty}`],
@@ -64,7 +52,7 @@ export default class QuestionService {
     const retrieverTool = createRetrieverTool(retriever, {
       name: 'generate_new_problem',
       description:
-        'Generate a new problem based on the provided difficulty using the provided context. You must use this tool for generating a new question',
+        'Generate a new problem based on the provided difficulty. You must use this tool for generating a new question',
       verbose: true,
     })
 
@@ -84,7 +72,6 @@ export default class QuestionService {
 
     const result = await agentExecutor.invoke({
       difficulty: difficulty,
-      context: contextMessages,
     })
 
     return result
