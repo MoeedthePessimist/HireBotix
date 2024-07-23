@@ -23,7 +23,7 @@ export default class QuestionService {
     return Math.floor(Math.random() * 1000)
   }
 
-  async generate(difficulty: string) {
+  async generate(difficulty: string, queryType: string, question?: string, code?: string) {
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
     })
@@ -69,6 +69,13 @@ export default class QuestionService {
       Feedback: Provide detailed feedback, highlighting strengths and areas for improvement.
     `
 
+    const generateQuestionPrompt = `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints.`
+    const analyzeQuestionPrompt = `Analyze the following code submission for the question "{question}". Provide detailed feedback on its correctness, efficiency, and code quality. Suggest improvements where necessary.
+
+Code:
+{code}
+`
+
     const prompt = ChatPromptTemplate.fromMessages(
       [
         [
@@ -77,11 +84,7 @@ export default class QuestionService {
         `,
         ],
         ['placeholder', '{chat_history}'],
-        [
-          'human',
-          `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints.
-`,
-        ],
+        ['human', `${queryType === 'Analyze' ? analyzeQuestionPrompt : generateQuestionPrompt}`],
         ['placeholder', '{agent_scratchpad}'],
       ],
       {
@@ -94,9 +97,6 @@ export default class QuestionService {
       description:
         'Generate a new problem based on the provided difficulty. You must use this tool for generating a new question',
       verbose: true,
-      metadata: {
-        difficulty: difficulty,
-      },
     })
 
     const tools = [retrieverTool]
@@ -113,10 +113,17 @@ export default class QuestionService {
       verbose: true,
     })
 
-    const result = await agentExecutor.invoke({
-      difficulty: difficulty,
-      category: 'Random',
-    })
+    const result = await agentExecutor.invoke(
+      queryType === 'Generate'
+        ? {
+            difficulty: difficulty,
+            category: 'Random',
+          }
+        : {
+            question: question,
+            code: code,
+          }
+    )
 
     return result
 
