@@ -1,23 +1,20 @@
-import { chatModel, embeddings } from '#config/langchain'
+import { llm, embeddings } from '#config/langchain'
 import { pcIndex } from '#config/pinecone'
 import Conversation from '#models/conversation'
 import { AIMessage, HumanMessage } from '@langchain/core/messages'
 import { StringOutputParser } from '@langchain/core/output_parsers'
-import { ChatPromptTemplate } from '@langchain/core/prompts'
-import { PineconeStore } from '@langchain/pinecone'
+import { ChatPromptTemplate, PromptTemplate } from '@langchain/core/prompts'
+import { PineconeStore, PineconeTranslator } from '@langchain/pinecone'
 import {
   AgentExecutor,
   createOpenAIFunctionsAgent,
-  createVectorStoreAgent,
-  VectorStoreInfo,
-  VectorStoreToolkit,
+  createReactAgent,
+  createToolCallingAgent,
 } from 'langchain/agents'
-import { createStuffDocumentsChain } from 'langchain/chains/combine_documents'
-import { createHistoryAwareRetriever } from 'langchain/chains/history_aware_retriever'
-import { createRetrievalChain } from 'langchain/chains/retrieval'
+import { AttributeInfo } from 'langchain/chains/query_constructor'
 import { Document } from 'langchain/document'
-import { JSONLoader } from 'langchain/document_loaders/fs/json'
-import { ChainTool, DynamicTool, VectorStoreQATool } from 'langchain/tools'
+import { pull } from 'langchain/hub'
+import { SelfQueryRetriever } from 'langchain/retrievers/self_query'
 import { createRetrieverTool } from 'langchain/tools/retriever'
 import fs from 'node:fs'
 
@@ -32,7 +29,45 @@ export default class QuestionService {
     })
 
     const retriever = vectorStore.asRetriever()
-    const systemMessage = `You are a technical interviewer, you are going to assign a question from the existing knowledge base in the vector store based on the given difficulty. Make sure it is not a question from the outside.`
+
+    // const attributeInfo: AttributeInfo[] = [
+    //   {
+    //     name: 'difficulty',
+    //     description: 'The difficulty of the coding problem',
+    //     type: 'string',
+    //   },
+    // ]
+
+    // const documentContents = 'A coding problem'
+
+    // const retriever = vectorStore.asRetriever()
+    // const retriever = SelfQueryRetriever.fromLLM({
+    //   llm: llm,
+    //   vectorStore,
+    //   documentContents,
+    //   attributeInfo,
+    //   structuredQueryTranslator: new PineconeTranslator(),
+    // })
+    const systemMessage = `
+      You are a highly knowledgeable and experienced technical interviewer specializing in evaluating coding skills and problem-solving abilities. Your task is to generate new coding questions based on specified difficulty levels and categories and provide detailed analysis and feedback on code submissions for these questions.
+      Responsibilities:
+      Generate Coding Questions:
+      Create new coding questions based on the provided difficulty level and category.
+      Ensure the questions are clear, concise, and cover various topics like algorithms, data structures, system design, etc.
+      Analyze Code Submissions:
+      Evaluate the provided code for correctness, efficiency, and best practices.
+      Identify potential improvements and provide constructive feedback.
+      Highlight any errors or suboptimal code segments with suggestions for improvement.
+      Instructions for Generating Questions:
+      Difficulty Levels: Easy, Medium, Hard
+      Categories: Algorithms, Data Structures, System Design, General Programming
+      Format: Include a problem statement, input/output description, and constraints.
+      Instructions for Analyzing Code:
+      Correctness: Verify if the code produces the correct output for given inputs.
+      Efficiency: Assess the time and space complexity of the code.
+      Code Quality: Review the code for readability, maintainability, and adherence to coding standards.
+      Feedback: Provide detailed feedback, highlighting strengths and areas for improvement.
+    `
 
     const prompt = ChatPromptTemplate.fromMessages(
       [
@@ -41,7 +76,12 @@ export default class QuestionService {
           `${systemMessage}
         `,
         ],
-        ['human', `I want a problem of difficulty: {difficulty}`],
+        ['placeholder', '{chat_history}'],
+        [
+          'human',
+          `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints.
+`,
+        ],
         ['placeholder', '{agent_scratchpad}'],
       ],
       {
@@ -54,12 +94,15 @@ export default class QuestionService {
       description:
         'Generate a new problem based on the provided difficulty. You must use this tool for generating a new question',
       verbose: true,
+      metadata: {
+        difficulty: difficulty,
+      },
     })
 
     const tools = [retrieverTool]
 
     const agent = await createOpenAIFunctionsAgent({
-      llm: chatModel,
+      llm: llm,
       tools,
       prompt,
     })
@@ -72,6 +115,7 @@ export default class QuestionService {
 
     const result = await agentExecutor.invoke({
       difficulty: difficulty,
+      category: 'Random',
     })
 
     return result
@@ -130,13 +174,13 @@ export default class QuestionService {
     // const retreiver = vectorStore.asRetriever()
 
     // const historyAwareRetrieverChain = await createHistoryAwareRetriever({
-    //   llm: chatModel,
+    //   llm: llm,
     //   retriever: retreiver,
     //   rephrasePrompt: historyAwarePrompt,
     // })
 
     // const historyAwareCombineDocsChain = await createStuffDocumentsChain({
-    //   llm: chatModel,
+    //   llm: llm,
     //   prompt: historyAwarePrompt,
     // })
 
