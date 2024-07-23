@@ -23,7 +23,13 @@ export default class QuestionService {
     return Math.floor(Math.random() * 1000)
   }
 
-  async generate(difficulty: string, queryType: string, question?: string, code?: string) {
+  async generate(
+    difficulty: string,
+    queryType: string,
+    question?: string,
+    code?: string,
+    room?: number
+  ) {
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
     })
@@ -92,6 +98,13 @@ Code:
       }
     )
 
+    const promptMessages = await prompt.formatMessages({
+      question: question,
+      code: code,
+      difficulty: difficulty,
+      category: 'Random',
+    })
+
     const retrieverTool = createRetrieverTool(retriever, {
       name: 'generate_new_problem',
       description:
@@ -125,29 +138,26 @@ Code:
           }
     )
 
-    return result
+    const roomID = room ? room : this.randNum()
 
-    // const roomID = this.randNum()
+    // insert the result to the database.
+    const conversation = await Conversation.createMany([
+      {
+        room: roomID,
+        message: promptMessages[promptMessages.length - 1].content,
+        sender: 'User',
+      },
+      {
+        room: roomID,
+        message: result.output,
+        sender: 'AI',
+      },
+    ])
 
-    // // insert the result to the database.
-    // const conversation = await Conversation.createMany([
-    //   { room: roomID, message: systemMessage, sender: 'System' },
-    //   {
-    //     room: roomID,
-    //     message: difficulty,
-    //     sender: 'User',
-    //   },
-    //   {
-    //     room: roomID,
-    //     message: result.answer,
-    //     sender: 'AI',
-    //   },
-    // ])
-
-    // return {
-    //   result,
-    //   // conversation,
-    // }
+    return {
+      result,
+      conversation,
+    }
   }
 
   async analyze(room: number, code: string) {
