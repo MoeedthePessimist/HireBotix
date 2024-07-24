@@ -3,18 +3,10 @@ import { pcIndex } from '#config/pinecone'
 import Conversation from '#models/conversation'
 import { AIMessage, HumanMessage } from '@langchain/core/messages'
 import { StringOutputParser } from '@langchain/core/output_parsers'
-import { ChatPromptTemplate, PromptTemplate } from '@langchain/core/prompts'
-import { PineconeStore, PineconeTranslator } from '@langchain/pinecone'
-import {
-  AgentExecutor,
-  createOpenAIFunctionsAgent,
-  createReactAgent,
-  createToolCallingAgent,
-} from 'langchain/agents'
-import { AttributeInfo } from 'langchain/chains/query_constructor'
+import { ChatPromptTemplate } from '@langchain/core/prompts'
+import { PineconeStore } from '@langchain/pinecone'
+import { AgentExecutor, createOpenAIFunctionsAgent } from 'langchain/agents'
 import { Document } from 'langchain/document'
-import { pull } from 'langchain/hub'
-import { SelfQueryRetriever } from 'langchain/retrievers/self_query'
 import { createRetrieverTool } from 'langchain/tools/retriever'
 import fs from 'node:fs'
 
@@ -29,7 +21,7 @@ export default class QuestionService {
                                    Code:
                                    {code}
                                   `
-    const candidateFeedbackPrompt = `Provide feedback on the candidate's overall performance for their overall performance and the questions that they solved. Highlight their strengths, areas for improvement, and give specific suggestions to help them improve their skills.`
+    const candidateFeedbackPrompt = `Provide feedback on the candidate's overall performance based on the questions they solved as given in this coversation. Mark each of their attempted answers aswell. Highlight their strengths, areas for improvement, and give specific suggestions to help them improve their skills.`
     switch (queryType) {
       case 'Analyze':
         return analyzeQuestionPrompt
@@ -96,6 +88,7 @@ export default class QuestionService {
       Code Quality: Review the code for readability, maintainability, and adherence to coding standards.
       Feedback: Provide detailed feedback, highlighting strengths and areas for improvement.
       Instructions for Providing Candidate Feedback:
+      Context: Use the conversation history as context and the coding problems that you analyzed and based on that provide the following review.
       Overall Performance: Assess the candidate’s approach to problem-solving and coding.
       Strengths: Highlight what the candidate did well, such as understanding the problem, coding efficiently, or using best practices.
       Areas for Improvement: Identify specific areas where the candidate can improve, such as optimizing code, handling edge cases, or improving code readability.
@@ -129,6 +122,8 @@ export default class QuestionService {
       chat_history: chatHistory,
     })
 
+    console.log(promptMessages)
+
     const retrieverTool = createRetrieverTool(retriever, {
       name: 'generate_new_problem',
       description:
@@ -155,9 +150,11 @@ export default class QuestionService {
         ? {
             difficulty: difficulty,
             category: 'Random',
+            chat_history: chatHistory,
           }
         : {
             code: code,
+            chat_history: chatHistory,
           }
     )
 

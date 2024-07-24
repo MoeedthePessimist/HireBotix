@@ -34,7 +34,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring OpenAI connection
   |----------------------------------------------------------
   */
-  OPENAI_API_KEY: Env.schema.string(),
 
   PINECONE_API_KEY: Env.schema.string(),
 
