@@ -7,11 +7,11 @@ export default class QuestionsController {
   constructor(protected questionService: QuestionService) {}
 
   async generate({ request, response }: HttpContext) {
-    const { difficulty, queryType } = request.qs()
+    const { difficulty, queryType, room } = request.qs()
 
-    const { question, code } = request.body()
+    const { code } = request.body()
 
-    const result = await this.questionService.generate(difficulty, queryType, question, code)
+    const result = await this.questionService.generate(difficulty, queryType, code, room)
 
     response.status(200).json({
       message: 'Generated!',

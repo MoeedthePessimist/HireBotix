@@ -23,37 +23,31 @@ export default class QuestionService {
     return Math.floor(Math.random() * 1000)
   }
 
-  async generate(
-    difficulty: string,
-    queryType: string,
-    question?: string,
-    code?: string,
-    room?: number
-  ) {
+  async generate(difficulty: string, queryType: string, code?: string, room?: number) {
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
     })
 
     const retriever = vectorStore.asRetriever()
 
-    // const attributeInfo: AttributeInfo[] = [
-    //   {
-    //     name: 'difficulty',
-    //     description: 'The difficulty of the coding problem',
-    //     type: 'string',
-    //   },
-    // ]
+    let chatHistory: (AIMessage | HumanMessage)[] = []
 
-    // const documentContents = 'A coding problem'
+    if (room) {
+      console.log(room, 'room')
+      const conversation = await Conversation.query().where('room', room)
+      console.log(conversation[1].message)
+      chatHistory = conversation.map((value, index) => {
+        const object =
+          value.sender.toLowerCase() === 'ai'
+            ? new AIMessage(value.message)
+            : new HumanMessage(value.message)
 
-    // const retriever = vectorStore.asRetriever()
-    // const retriever = SelfQueryRetriever.fromLLM({
-    //   llm: llm,
-    //   vectorStore,
-    //   documentContents,
-    //   attributeInfo,
-    //   structuredQueryTranslator: new PineconeTranslator(),
-    // })
+        return object
+      })
+
+      console.log(chatHistory)
+    }
+
     const systemMessage = `
       You are a highly knowledgeable and experienced technical interviewer specializing in evaluating coding skills and problem-solving abilities. Your task is to generate new coding questions based on specified difficulty levels and categories and provide detailed analysis and feedback on code submissions for these questions.
       Responsibilities:
@@ -76,7 +70,7 @@ export default class QuestionService {
     `
 
     const generateQuestionPrompt = `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints.`
-    const analyzeQuestionPrompt = `Analyze the following code submission for the question "{question}". Provide detailed feedback on its correctness, efficiency, and code quality. Suggest improvements where necessary.
+    const analyzeQuestionPrompt = `Analyze the following code submission for the question in the previous prompt. Provide detailed feedback on its correctness, efficiency, and code quality. Suggest improvements where necessary.
 
 Code:
 {code}
@@ -99,10 +93,10 @@ Code:
     )
 
     const promptMessages = await prompt.formatMessages({
-      question: question,
       code: code,
       difficulty: difficulty,
       category: 'Random',
+      chat_history: chatHistory,
     })
 
     const retrieverTool = createRetrieverTool(retriever, {
@@ -133,7 +127,6 @@ Code:
             category: 'Random',
           }
         : {
-            question: question,
             code: code,
           }
     )
