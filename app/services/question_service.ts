@@ -23,6 +23,27 @@ export default class QuestionService {
     return Math.floor(Math.random() * 1000)
   }
 
+  getHumanPrompt(queryType: string) {
+    const generateQuestionPrompt = `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints.`
+    const analyzeQuestionPrompt = `Analyze the following code submission for the question in the previous prompt. Provide detailed feedback on its correctness, efficiency, and code quality. Suggest improvements where necessary.
+                                   Code:
+                                   {code}
+                                  `
+    const candidateFeedbackPrompt = `Provide feedback on the candidate's overall performance for their overall performance and the questions that they solved. Highlight their strengths, areas for improvement, and give specific suggestions to help them improve their skills.`
+    switch (queryType) {
+      case 'Analyze':
+        return analyzeQuestionPrompt
+      case 'Generate':
+        return generateQuestionPrompt
+
+      case 'Feedback':
+        return candidateFeedbackPrompt
+
+      default:
+        return generateQuestionPrompt
+    }
+  }
+
   async generate(difficulty: string, queryType: string, code?: string, room?: number) {
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
@@ -49,15 +70,22 @@ export default class QuestionService {
     }
 
     const systemMessage = `
-      You are a highly knowledgeable and experienced technical interviewer specializing in evaluating coding skills and problem-solving abilities. Your task is to generate new coding questions based on specified difficulty levels and categories and provide detailed analysis and feedback on code submissions for these questions.
+      You are a highly knowledgeable and experienced technical interviewer specializing in evaluating coding skills and problem-solving abilities. Your task is to generate new coding questions based on specified difficulty levels and categories, provide detailed analysis and feedback on code submissions for these questions, and give overall feedback to the candidate on their performance.
+
       Responsibilities:
       Generate Coding Questions:
+
       Create new coding questions based on the provided difficulty level and category.
       Ensure the questions are clear, concise, and cover various topics like algorithms, data structures, system design, etc.
       Analyze Code Submissions:
+
       Evaluate the provided code for correctness, efficiency, and best practices.
       Identify potential improvements and provide constructive feedback.
       Highlight any errors or suboptimal code segments with suggestions for improvement.
+      Provide Candidate Feedback:
+
+      Offer comprehensive feedback on the candidate's overall performance.
+      Highlight strengths, areas for improvement, and provide specific suggestions to help the candidate improve their skills.
       Instructions for Generating Questions:
       Difficulty Levels: Easy, Medium, Hard
       Categories: Algorithms, Data Structures, System Design, General Programming
@@ -67,14 +95,16 @@ export default class QuestionService {
       Efficiency: Assess the time and space complexity of the code.
       Code Quality: Review the code for readability, maintainability, and adherence to coding standards.
       Feedback: Provide detailed feedback, highlighting strengths and areas for improvement.
+      Instructions for Providing Candidate Feedback:
+      Overall Performance: Assess the candidate’s approach to problem-solving and coding.
+      Strengths: Highlight what the candidate did well, such as understanding the problem, coding efficiently, or using best practices.
+      Areas for Improvement: Identify specific areas where the candidate can improve, such as optimizing code, handling edge cases, or improving code readability.
+      Suggestions: Offer actionable advice to help the candidate enhance their skills
     `
 
-    const generateQuestionPrompt = `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints.`
-    const analyzeQuestionPrompt = `Analyze the following code submission for the question in the previous prompt. Provide detailed feedback on its correctness, efficiency, and code quality. Suggest improvements where necessary.
+    let humanMessage = this.getHumanPrompt(queryType)
 
-Code:
-{code}
-`
+    console.log(humanMessage)
 
     const prompt = ChatPromptTemplate.fromMessages(
       [
@@ -84,7 +114,7 @@ Code:
         `,
         ],
         ['placeholder', '{chat_history}'],
-        ['human', `${queryType === 'Analyze' ? analyzeQuestionPrompt : generateQuestionPrompt}`],
+        ['human', `${humanMessage}`],
         ['placeholder', '{agent_scratchpad}'],
       ],
       {
