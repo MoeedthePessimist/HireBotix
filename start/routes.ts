@@ -17,5 +17,4 @@ router.get('/', async () => {
 })
 
 router.post('/questions', [QuestionsController, 'generate'])
-// router.post('/questions', [QuestionsController, 'store'])
-router.post('/questions/analyze', [QuestionsController, 'analyze'])
+router.post('/questions/store', [QuestionsController, 'store'])

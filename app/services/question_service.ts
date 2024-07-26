@@ -4,10 +4,11 @@ import Conversation from '#models/conversation'
 import { AIMessage, HumanMessage } from '@langchain/core/messages'
 import { StringOutputParser } from '@langchain/core/output_parsers'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
+import { DynamicStructuredTool } from '@langchain/core/tools'
 import { PineconeStore } from '@langchain/pinecone'
-import { AgentExecutor, createOpenAIFunctionsAgent } from 'langchain/agents'
+import { AgentExecutor, createOpenAIToolsAgent } from 'langchain/agents'
 import { Document } from 'langchain/document'
-import { createRetrieverTool } from 'langchain/tools/retriever'
+import { z } from 'zod'
 import fs from 'node:fs'
 
 export default class QuestionService {
@@ -16,7 +17,7 @@ export default class QuestionService {
   }
 
   getHumanPrompt(queryType: string) {
-    const generateQuestionPrompt = `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints.`
+    const generateQuestionPrompt = `Based on the difficulty level {difficulty} and category {category}, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints. Also list down which questions you used to generate new problems from the provided vector database`
     const analyzeQuestionPrompt = `Analyze the following code submission for the question in the previous prompt. Provide detailed feedback on its correctness, efficiency, and code quality. Suggest improvements where necessary.
                                    Code:
                                    {code}
@@ -46,10 +47,8 @@ export default class QuestionService {
     let chatHistory: (AIMessage | HumanMessage)[] = []
 
     if (room) {
-      console.log(room, 'room')
       const conversation = await Conversation.query().where('room', room)
-      console.log(conversation[1].message)
-      chatHistory = conversation.map((value, index) => {
+      chatHistory = conversation.map((value) => {
         const object =
           value.sender.toLowerCase() === 'ai'
             ? new AIMessage(value.message)
@@ -65,30 +64,37 @@ export default class QuestionService {
       You are a highly knowledgeable and experienced technical interviewer specializing in evaluating coding skills and problem-solving abilities. Your task is to generate new coding questions based on specified difficulty levels and categories, provide detailed analysis and feedback on code submissions for these questions, and give overall feedback to the candidate on their performance.
 
       Responsibilities:
-      Generate Coding Questions:
 
+      Generate Coding Questions:
       Create new coding questions based on the provided difficulty level and category.
       Ensure the questions are clear, concise, and cover various topics like algorithms, data structures, system design, etc.
-      Analyze Code Submissions:
+      Take in the embeddings in vector database as context for new question and use the metadata to match the difficulty level in order to get better context.
 
+      Analyze Code Submissions:
       Evaluate the provided code for correctness, efficiency, and best practices.
       Identify potential improvements and provide constructive feedback.
       Highlight any errors or suboptimal code segments with suggestions for improvement.
-      Provide Candidate Feedback:
 
+      Provide Candidate Feedback:
       Offer comprehensive feedback on the candidate's overall performance.
       Highlight strengths, areas for improvement, and provide specific suggestions to help the candidate improve their skills.
+
       Instructions for Generating Questions:
       Difficulty Levels: Easy, Medium, Hard
       Categories: Algorithms, Data Structures, System Design, General Programming
       Format: Include a problem statement, input/output description, and constraints.
+      Context: Embeddings stored in vector database.
+      
+    
       Instructions for Analyzing Code:
       Correctness: Verify if the code produces the correct output for given inputs.
       Efficiency: Assess the time and space complexity of the code.
       Code Quality: Review the code for readability, maintainability, and adherence to coding standards.
+
       Feedback: Provide detailed feedback, highlighting strengths and areas for improvement.
+
       Instructions for Providing Candidate Feedback:
-      Context: Use the conversation history as context and the coding problems that you analyzed and based on that provide the following review.
+      Context: Use the conversation history as context and the coding problems that you analyzed and based on that provide a detailed feedback.
       Overall Performance: Assess the candidate’s approach to problem-solving and coding.
       Strengths: Highlight what the candidate did well, such as understanding the problem, coding efficiently, or using best practices.
       Areas for Improvement: Identify specific areas where the candidate can improve, such as optimizing code, handling edge cases, or improving code readability.
@@ -115,25 +121,40 @@ export default class QuestionService {
       }
     )
 
+    // const retrieverTool = createRetrieverTool(retriever, {
+    //   name: 'retreive_coding_problems',
+    //   description:
+    //     'Provide context for question generation from the vector database. For any generation of new question use this tool to get context for the new question to be generated',
+    //   verbose: true,
+    // })
+
+    const questionContextTool = new DynamicStructuredTool({
+      name: 'question-generation',
+      description:
+        'Provide context for question generation from the vector database. For any generation of new question use this tool to get context for the new question to be generated',
+      schema: z.object({
+        diff: z.string().describe('The difficulty of the question'),
+      }),
+      func: async ({ diff }) => {
+        return await retriever.invoke('', {
+          metadata: {
+            difficulty: diff,
+          },
+        })
+      },
+    })
+
+    const tools = [questionContextTool]
+
     const promptMessages = await prompt.formatMessages({
       code: code,
       difficulty: difficulty,
       category: 'Random',
       chat_history: chatHistory,
+      tools: tools,
     })
 
-    console.log(promptMessages)
-
-    const retrieverTool = createRetrieverTool(retriever, {
-      name: 'generate_new_problem',
-      description:
-        'Generate a new problem based on the provided difficulty. You must use this tool for generating a new question',
-      verbose: true,
-    })
-
-    const tools = [retrieverTool]
-
-    const agent = await createOpenAIFunctionsAgent({
+    const agent = await createOpenAIToolsAgent({
       llm: llm,
       tools,
       prompt,
@@ -180,61 +201,6 @@ export default class QuestionService {
     }
   }
 
-  async analyze(room: number, code: string) {
-    const conversation = await Conversation.query().where('room', room)
-
-    const historyAwarePrompt = ChatPromptTemplate.fromMessages([
-      [
-        'system',
-        `${conversation[0].message}
-        <context>
-        {context}
-        <context>
-        `,
-      ],
-      new HumanMessage(`Difficulty: ${conversation[1].message}`),
-      new AIMessage(`${conversation[2].message}`),
-      [
-        'user',
-        `I want you to evaluate my code. Please give me suggestions as how can I make this code better:
-
-        {input}`,
-      ],
-    ])
-
-    console.log(historyAwarePrompt)
-
-    // const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
-    //   pineconeIndex: pcIndex,
-    // })
-
-    // const retreiver = vectorStore.asRetriever()
-
-    // const historyAwareRetrieverChain = await createHistoryAwareRetriever({
-    //   llm: llm,
-    //   retriever: retreiver,
-    //   rephrasePrompt: historyAwarePrompt,
-    // })
-
-    // const historyAwareCombineDocsChain = await createStuffDocumentsChain({
-    //   llm: llm,
-    //   prompt: historyAwarePrompt,
-    // })
-
-    // const conversationalRetrievalChain = await createRetrievalChain({
-    //   retriever: historyAwareRetrieverChain,
-    //   combineDocsChain: historyAwareCombineDocsChain,
-    // })
-
-    // const result = await conversationalRetrievalChain.invoke({
-    //   input: `
-    //        ${code}
-    //     `,
-    // })
-
-    return null
-  }
-
   async store() {
     const file = fs.readFileSync('questions.json', 'utf8')
     const existingQuestions = await JSON.parse(file)
@@ -247,7 +213,6 @@ export default class QuestionService {
         },
       })
     })
-    console.log(documents)
 
     const vectors = await PineconeStore.fromDocuments(documents, embeddings, {
       pineconeIndex: pcIndex,
