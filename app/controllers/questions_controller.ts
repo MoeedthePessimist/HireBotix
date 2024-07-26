@@ -19,22 +19,26 @@ export default class QuestionsController {
     })
   }
 
-  async analyze({ request, response }: HttpContext) {
-    const room = request.qs().room
-    const code = request.body().code
-
-    const result = await this.questionService.analyze(room, code)
-
-    return response.json({
-      result,
-    })
-  }
-
   async store({ response }: HttpContext) {
     const vectors = await this.questionService.store()
 
     return response.json({
       vectors,
+    })
+  }
+
+  async vectorAgent({ response }: HttpContext) {
+    const results = await this.questionService.vectorAgent()
+    return response.json({
+      results,
+    })
+  }
+
+  async structuredChatAgent({ response }: HttpContext) {
+    const results = await this.questionService.structuredChatAgent()
+
+    return response.json({
+      results,
     })
   }
 }

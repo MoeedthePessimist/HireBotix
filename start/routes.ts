@@ -18,3 +18,5 @@ router.get('/', async () => {
 
 router.post('/questions', [QuestionsController, 'generate'])
 router.post('/questions/store', [QuestionsController, 'store'])
+router.get('/questions/vector-agent', [QuestionsController, 'vectorAgent'])
+router.get('/questions/structured-chat-agent', [QuestionsController, 'structuredChatAgent'])
