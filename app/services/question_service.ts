@@ -4,23 +4,20 @@ import Conversation from '#models/conversation'
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { StringOutputParser } from '@langchain/core/output_parsers'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
-import { DynamicStructuredTool } from '@langchain/core/tools'
 import { PineconeStore } from '@langchain/pinecone'
-
 import { pull } from 'langchain/hub'
 
 import {
   AgentExecutor,
-  createOpenAIToolsAgent,
   createStructuredChatAgent,
-  createToolCallingAgent,
   createVectorStoreAgent,
   VectorStoreInfo,
   VectorStoreToolkit,
 } from 'langchain/agents'
+import { createStuffDocumentsChain } from 'langchain/chains/combine_documents'
+
 import { createRetrieverTool } from 'langchain/tools/retriever'
 import { Document } from 'langchain/document'
-import { z } from 'zod'
 import fs from 'node:fs'
 
 export default class QuestionService {
@@ -29,7 +26,7 @@ export default class QuestionService {
   }
 
   getHumanPrompt(queryType: string) {
-    const generateQuestionPrompt = `Based on the difficulty level {difficulty}W, generate a new coding question using the existing questions in the vector database. The question should be clear and detailed, including the problem statement, input/output description, and constraints. Also list down which questions you used to generate new problems from the provided vector database`
+    const generateQuestionPrompt = `Based on the difficulty level {difficulty}, generate a new coding problem. The problem should be clear and detailed, including the problem statement, input/output description, and constraints.`
     const analyzeQuestionPrompt = `Analyze the following code submission for the question in the previous prompt. Provide detailed feedback on its correctness, efficiency, and code quality. Suggest improvements where necessary.
                                    Code:
                                    {code}
@@ -54,8 +51,6 @@ export default class QuestionService {
       pineconeIndex: pcIndex,
     })
 
-    const retriever = vectorStore.asRetriever()
-
     let chatHistory: (AIMessage | HumanMessage)[] = []
 
     if (room) {
@@ -68,8 +63,6 @@ export default class QuestionService {
 
         return object
       })
-
-      console.log(chatHistory)
     }
 
     const systemMessage = `
@@ -78,9 +71,10 @@ export default class QuestionService {
       Responsibilities:
 
       Generate Coding Questions:
-      Create new coding questions based on the provided difficulty level.
-      Ensure the questions are clear, concise, and cover various topics like algorithms, data structures, system design, etc.
-      Take in the embeddings in vector database as context for new question and use the metadata to match the difficulty level in order to get better context.
+      Create new coding questions based on the provided context:
+      {context}
+      Ensure the questions are clear, concise.
+      
 
       Analyze Code Submissions:
       Evaluate the provided code for correctness, efficiency, and best practices.
@@ -94,8 +88,6 @@ export default class QuestionService {
       Instructions for Generating Questions:
       Difficulty Levels: Easy, Intermediate, Hard
       Format: Include a problem statement, input/output description, and constraints.
-      Context: Embeddings stored in vector database.
-      
     
       Instructions for Analyzing Code:
       Correctness: Verify if the code produces the correct output for given inputs.
@@ -123,80 +115,48 @@ export default class QuestionService {
         ],
         ['placeholder', '{chat_history}'],
         ['human', `${humanMessage}`],
-        ['placeholder', '{agent_scratchpad}'],
       ],
       {
         outputParser: new StringOutputParser(),
       }
     )
 
-    const retrieverTool = createRetrieverTool(retriever, {
-      name: 'retreive_coding_problems',
-      description:
-        'Provide context for question generation from the vector database. For any generation of new question use this tool to get context for the new question to be generated',
-      verbose: true,
-    })
+    const retriever = vectorStore.asRetriever(10, { difficulty: difficulty })
 
-    // const questionContextTool = new DynamicStructuredTool({
-    //   name: 'question-generation',
-    //   description:
-    //     'Provide context for question generation from the vector database. For any generation of new question use this tool to get context for the new question to be generated',
-    //   schema: z.object({
-    //     diff: z.string().describe('The difficulty of the question'),
-    //   }),
-    //   func: async ({ diff }) => {
-    //     return await retriever.invoke('', {
-    //       metadata: {
-    //         difficulty: diff,
-    //       },
-    //     })
-    //   },
-    // })
+    const unstucturedContext = await retriever.invoke('Fetch all the problems')
 
-    const tools = [retrieverTool]
+    const context = unstucturedContext.map((value, index) => `${index} - ${value.pageContent}`)
 
     const promptMessages = await prompt.formatMessages({
-      code: code,
-      difficulty: difficulty,
+      code,
+      difficulty,
       chat_history: chatHistory,
+      context,
     })
 
-    const agent = await createOpenAIToolsAgent({
-      llm: llm,
-      tools,
+    const ragChain = await createStuffDocumentsChain({
+      llm,
       prompt,
     })
 
-    const agentExecutor = new AgentExecutor({
-      agent,
-      tools,
-      verbose: true,
+    const result = await ragChain.invoke({
+      code,
+      difficulty,
+      chat_history: chatHistory,
+      context,
     })
-
-    const result = await agentExecutor.invoke(
-      queryType === 'Generate'
-        ? {
-            difficulty: difficulty,
-            chat_history: chatHistory,
-          }
-        : {
-            code: code,
-            chat_history: chatHistory,
-          }
-    )
 
     const roomID = room ? room : this.randNum()
 
-    // insert the result to the database.
     const conversation = await Conversation.createMany([
       {
         room: roomID,
-        message: promptMessages[promptMessages.length - 1].content,
+        message: promptMessages[promptMessages.length - 1].content.toString(),
         sender: 'User',
       },
       {
         room: roomID,
-        message: result.output,
+        message: result,
         sender: 'AI',
       },
     ])
