@@ -6,6 +6,10 @@ import { StringOutputParser } from '@langchain/core/output_parsers'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
 import { PineconeStore } from '@langchain/pinecone'
 import { pull } from 'langchain/hub'
+import { MultiQueryRetriever } from 'langchain/retrievers/multi_query'
+import { SelfQueryRetriever } from 'langchain/retrievers/self_query'
+import { PineconeTranslator } from 'langchain/retrievers/self_query/pinecone'
+import { AttributeInfo } from 'langchain/schema/query_constructor'
 
 import {
   AgentExecutor,
@@ -46,7 +50,13 @@ export default class QuestionService {
     }
   }
 
-  async generate(difficulty: string, queryType: string, code?: string, room?: number) {
+  async generate(
+    difficulty: string,
+    queryType: string,
+    code?: string,
+    room?: number,
+    category?: string
+  ) {
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
       pineconeIndex: pcIndex,
     })
@@ -121,11 +131,13 @@ export default class QuestionService {
       }
     )
 
-    const retriever = vectorStore.asRetriever(10, { difficulty: difficulty })
+    const retriever = vectorStore.asRetriever({
+      filter: {
+        difficulty: difficulty,
+      },
+    })
 
-    const unstucturedContext = await retriever.invoke('Fetch all the problems')
-
-    const context = unstucturedContext.map((value, index) => `${index} - ${value.pageContent}`)
+    const context = await retriever.invoke(`Fetch all the ${category} based problems`)
 
     const promptMessages = await prompt.formatMessages({
       code,
@@ -194,7 +206,7 @@ export default class QuestionService {
 
     const vectorStoreInfo: VectorStoreInfo = {
       name: 'difficulty_based_problems',
-      description: 'To get the context of existing questions, use this tool',
+      description: 'To get the coding problems based on difficulty and category',
       vectorStore,
     }
 
@@ -202,8 +214,7 @@ export default class QuestionService {
 
     const agent = createVectorStoreAgent(llm, toolkit)
 
-    const input =
-      'Generate a new question of difficulty Easy using the existing questions of the same difficulty'
+    const input = 'Fetch all the problems of difficulty Easy'
 
     const result = await agent.invoke({ input })
 
